@@ -1,0 +1,44 @@
+use std::io::Result;
+use std::path::{Path, PathBuf};
+use std::fs::read_dir;
+use std::collections::HashMap;
+
+struct WordPosition {
+    line: u32,
+    column: u32
+}
+
+struct IndexEntry {
+    file: PathBuf,
+    positions: Vec<WordPosition>,
+    containing_line: String
+}
+
+fn build_index(file: PathBuf) -> HashMap<String, Vec<IndexEntry>> {
+    let _ie = IndexEntry { file, positions: Vec::new(), containing_line: "test".to_string()};
+    let mut h = HashMap::new();
+    h.insert("test".to_string(), Vec::new());
+    h
+}
+
+fn find_files(p: &Path) -> Result<Vec<PathBuf>> {
+    let mut res = Vec::new();
+    if p.is_dir() {
+        for entry in read_dir(p)? {
+            let entry = entry?;
+            let path = entry.path();
+            let mut vec = find_files(&path)?;
+            res.append(&mut vec);
+        }
+    } else {
+        res.push(p.to_path_buf());
+    }
+    Ok(res)
+}
+
+fn main() -> Result<()> {
+    let p = std::fs::canonicalize(Path::new("."))?;
+    let files = find_files(&p)?;
+    println!("{:?}", files);
+    Ok(())
+}
