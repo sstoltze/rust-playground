@@ -27,15 +27,18 @@ fn build_index(file: PathBuf) -> HashMap<String, Vec<IndexEntry>> {
 
 fn find_files(p: PathBuf) -> Result<Vec<PathBuf>> {
     let mut res = Vec::new();
-    if p.is_dir() {
-        for entry in read_dir(p)? {
-            let entry = entry?;
-            let path = entry.path();
-            let mut vec = find_files(path)?;
-            res.append(&mut vec);
+    // Ignore hidden paths
+    if !p.starts_with(".") {
+        if p.is_dir() {
+            for entry in read_dir(p)? {
+                let entry = entry?;
+                let path = entry.path();
+                let mut vec = find_files(path)?;
+                res.append(&mut vec);
+            }
+        } else {
+            res.push(p.to_path_buf());
         }
-    } else {
-        res.push(p.to_path_buf());
     }
     Ok(res)
 }
