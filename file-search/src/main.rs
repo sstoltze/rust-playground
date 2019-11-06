@@ -27,24 +27,34 @@ fn build_index(file: PathBuf) -> HashMap<String, Vec<IndexEntry>> {
 
 fn find_files(p: PathBuf) -> Result<Vec<PathBuf>> {
     let mut res = Vec::new();
-    // Ignore hidden paths
-    if !p.starts_with(".") {
-        if p.is_dir() {
-            for entry in read_dir(p)? {
-                let entry = entry?;
-                let path = entry.path();
-                let mut vec = find_files(path)?;
-                res.append(&mut vec);
+    match p.file_name() {
+        Some(file_name) => {
+            match file_name.to_str() {
+                Some(file_str) => {
+                    // Ignore hidden paths
+                    if !file_str.starts_with(".") {
+                        if p.is_dir() {
+                            for entry in read_dir(p)? {
+                                let entry = entry?;
+                                let path = entry.path();
+                                let mut vec = find_files(path)?;
+                                res.append(&mut vec);
+                            }
+                        } else {
+                            res.push(p.to_path_buf());
+                        }
+                    }
+                }
+                None => (),
             }
-        } else {
-            res.push(p.to_path_buf());
         }
+        None => (),
     }
     Ok(res)
 }
 
 fn main() -> Result<()> {
-    let p = std::fs::canonicalize(Path::new("."))?;
+    let p = std::fs::canonicalize(Path::new("../.."))?;
     let files = find_files(p)?;
     println!("{:?}", files);
     Ok(())
