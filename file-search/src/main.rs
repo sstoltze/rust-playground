@@ -18,6 +18,13 @@ struct IndexEntry {
 
 type WordIndex = HashMap<String, Vec<IndexEntry>>;
 
+fn combine_indexes(mut a: WordIndex, b: WordIndex) -> WordIndex {
+    for (word, mut vec) in b {
+        a.entry(String::from(word)).or_default().append(&mut vec);
+    }
+    a
+}
+
 fn build_index(file: PathBuf) -> Result<WordIndex> {
     let mut file_index: WordIndex = HashMap::new();
 
@@ -42,7 +49,7 @@ fn build_index(file: PathBuf) -> Result<WordIndex> {
 }
 
 fn find_files(p: PathBuf) -> Result<Vec<PathBuf>> {
-    let mut res = Vec::new();
+    let mut files = Vec::new();
     if let Some(file_name) = p.file_name() {
         if let Some(file_str) = file_name.to_str() {
             // Ignore hidden paths
@@ -51,27 +58,29 @@ fn find_files(p: PathBuf) -> Result<Vec<PathBuf>> {
                     for entry in read_dir(p)? {
                         let path = entry?.path();
                         let mut vec = find_files(path)?;
-                        res.append(&mut vec);
+                        files.append(&mut vec);
                     }
                 } else {
-                    res.push(p.to_path_buf());
+                    files.push(p.to_path_buf());
                 }
             }
         }
     }
-    Ok(res)
+    Ok(files)
 }
 
 fn main() -> Result<()> {
     let p = std::fs::canonicalize(Path::new("."))?;
     let files = find_files(p)?;
     println!("{:?}", files);
+    let mut index = WordIndex::new();
     for f in files.iter() {
-        let index = build_index(f.clone())?;
-        println!("{:?}", index);
-        for ie in index["column:"].iter() {
-            println!("--- {} ---", ie.containing_line);
-        }
+        let file_index = build_index(f.clone())?;
+        index = combine_indexes(index, file_index);
+        // println!("{:?}", index);
+    }
+    for ie in index["column:"].iter() {
+        println!("--- {} ---", ie.containing_line);
     }
     Ok(())
 }
