@@ -4,6 +4,7 @@ use rand::Rng;
 use std::cmp;
 use tcod::colors::*;
 use tcod::console::*;
+use tcod::input::{self, Event, Key, Mouse};
 use tcod::map::{FovAlgorithm, Map as FovMap};
 
 const LIMIT_FPS: i32 = 20;
@@ -12,7 +13,11 @@ const SCREEN_WIDTH: i32 = 80;
 const SCREEN_HEIGHT: i32 = 50;
 
 const MAP_WIDTH: i32 = 80;
-const MAP_HEIGHT: i32 = 45;
+const MAP_HEIGHT: i32 = 43;
+
+const BAR_WIDTH: i32 = 20;
+const PANEL_HEIGHT: i32 = 7;
+const PANEL_Y: i32 = SCREEN_HEIGHT - PANEL_HEIGHT;
 
 const ROOM_MAX_SIZE: i32 = 10;
 const ROOM_MIN_SIZE: i32 = 6;
@@ -22,16 +27,43 @@ const MAX_ROOM_MONSTERS: i32 = 3;
 
 const PLAYER: usize = 0;
 
+const MSG_X: i32 = BAR_WIDTH + 2;
+const MSG_WIDTH: i32 = SCREEN_WIDTH - BAR_WIDTH - 2;
+const MSG_HEIGHT: usize = PANEL_HEIGHT as usize - 1;
+
 const FOV_ALGO: FovAlgorithm = FovAlgorithm::Basic;
 const FOV_LIGHT_WALLS: bool = true;
 const TORCH_RADIUS: i32 = 10;
+
+type Message = (String, Color);
+
+struct Messages {
+    messages: Vec<Message>,
+}
+
+impl Messages {
+    pub fn new() -> Self {
+        Self { messages: vec![] }
+    }
+
+    pub fn add<T: Into<String>>(&mut self, message: T, color: Color) {
+        self.messages.push((message.into(), color));
+    }
+
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Message> {
+        self.messages.iter()
+    }
+}
 
 // Encapsulate all tcod values in a struct
 struct Tcod {
     root: Root,
     // Consoles are how tcod draws things
     con: Offscreen,
+    panel: Offscreen,
     fov: FovMap,
+    key: Key,
+    mouse: Mouse,
 }
 
 // An object in the game
@@ -83,7 +115,7 @@ impl Object {
         ((dx.pow(2) + dy.pow(2)) as f32).sqrt()
     }
 
-    pub fn take_damage(&mut self, damage: i32) {
+    pub fn take_damage(&mut self, damage: i32, game: &mut Game) {
         if let Some(fighter) = self.fighter.as_mut() {
             if damage > 0 {
                 fighter.hp -= damage;
@@ -93,23 +125,29 @@ impl Object {
         if let Some(fighter) = self.fighter {
             if fighter.hp <= 0 {
                 self.alive = false;
-                fighter.on_death.callback(self);
+                fighter.on_death.callback(self, game);
             }
         }
     }
 
-    pub fn attack(&mut self, target: &mut Object) {
+    pub fn attack(&mut self, target: &mut Object, game: &mut Game) {
         let damage = self.fighter.map_or(0, |f| f.power) - target.fighter.map_or(0, |f| f.defense);
         if damage > 0 {
-            println!(
-                "{} attacks {} for {} hitpoints.",
-                self.name, target.name, damage
+            game.messages.add(
+                format!(
+                    "{} attacks {} for {} hitpoints.",
+                    self.name, target.name, damage
+                ),
+                WHITE,
             );
-            target.take_damage(damage);
+            target.take_damage(damage, game);
         } else {
-            println!(
-                "{} attacks {} but is has no effect.",
-                self.name, target.name
+            game.messages.add(
+                format!(
+                    "{} attacks {} but is has no effect.",
+                    self.name, target.name
+                ),
+                WHITE,
             );
         }
     }
@@ -131,25 +169,25 @@ enum DeathCallback {
 }
 
 impl DeathCallback {
-    fn callback(self, object: &mut Object) {
+    fn callback(self, object: &mut Object, game: &mut Game) {
         use DeathCallback::*;
-        let callback: fn(&mut Object) = match self {
+        let callback = match self {
             Player => player_death,
             Monster => monster_death,
         };
-        callback(object);
+        callback(object, game);
     }
 }
 
-fn player_death(player: &mut Object) {
-    println!("You died!");
-
+fn player_death(player: &mut Object, game: &mut Game) {
+    game.messages.add("You died!", RED);
     player.char = '%';
     player.colour = DARK_RED;
 }
 
-fn monster_death(monster: &mut Object) {
-    println!("{} is dead!", monster.name);
+fn monster_death(monster: &mut Object, game: &mut Game) {
+    game.messages
+        .add(format!("{} is dead!", monster.name), ORANGE);
     monster.char = '%';
     monster.colour = DARK_RED;
     monster.blocks = false;
@@ -224,6 +262,7 @@ type Map = Vec<Vec<Tile>>;
 
 struct Game {
     map: Map,
+    messages: Messages,
 }
 
 fn make_map(objects: &mut Vec<Object>) -> Map {
@@ -389,7 +428,7 @@ fn mut_two<T>(first_index: usize, second_index: usize, items: &mut [T]) -> (&mut
     }
 }
 
-fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &Game, objects: &mut [Object]) {
+fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &mut Game, objects: &mut [Object]) {
     let (monster_x, monster_y) = objects[monster_id].pos();
     if tcod.fov.is_in_fov(monster_x, monster_y) {
         if objects[monster_id].distance_to(&objects[PLAYER]) >= 2.0 {
@@ -397,7 +436,7 @@ fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &Game, objects: &mut [Obje
             move_towards(monster_id, player_x, player_y, &game.map, objects);
         } else if objects[PLAYER].fighter.map_or(false, |f| f.hp > 0) {
             let (monster, player) = mut_two(monster_id, PLAYER, objects);
-            monster.attack(player);
+            monster.attack(player, game);
         }
     }
 }
@@ -413,7 +452,11 @@ fn main() {
     let mut tcod = Tcod {
         root,
         con: Offscreen::new(MAP_WIDTH, MAP_HEIGHT),
+        panel: Offscreen::new(SCREEN_WIDTH, PANEL_HEIGHT),
         fov: FovMap::new(MAP_WIDTH, MAP_HEIGHT),
+        // A lot of types implement a default value
+        key: Default::default(),
+        mouse: Default::default(),
     };
 
     tcod::system::set_fps(LIMIT_FPS);
@@ -432,6 +475,7 @@ fn main() {
 
     let mut game = Game {
         map: make_map(&mut objects),
+        messages: Messages::new(),
     };
 
     for y in 0..MAP_HEIGHT {
@@ -444,27 +488,69 @@ fn main() {
             )
         }
     }
+
+    game.messages.add(
+        "Welcome stranger! Prepare to perish in the Tombs of the Ancient Kings!",
+        RED,
+    );
+
     // Keep track of the player position to update the FOV when player moves
     let mut previous_player_position = (-1, -1);
     while !tcod.root.window_closed() {
         tcod.con.clear();
         let fov_recompute = previous_player_position != objects[PLAYER].pos();
+        match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
+            Some((_, Event::Mouse(m))) => tcod.mouse = m,
+            Some((_, Event::Key(k))) => tcod.key = k,
+            // Reset key when we don't get a keyboard event
+            _ => tcod.key = Default::default(),
+        }
         render_all(&mut tcod, &mut game, &objects, fov_recompute);
         tcod.root.flush();
         let player = &mut objects[PLAYER];
         previous_player_position = (player.x, player.y);
-        let player_action = handle_keys(&mut tcod, &mut objects, &game);
+        let player_action = handle_keys(&mut tcod, &mut objects, &mut game);
         if player_action == PlayerAction::Exit {
             break;
         }
         if objects[PLAYER].alive && player_action != PlayerAction::DidntTakeTurn {
             for id in 0..objects.len() {
                 if objects[id].ai.is_some() {
-                    ai_take_turn(id, &tcod, &game, &mut objects);
+                    ai_take_turn(id, &tcod, &mut game, &mut objects);
                 }
             }
         }
     }
+}
+
+fn render_bar(
+    panel: &mut Offscreen,
+    x: i32,
+    y: i32,
+    total_width: i32,
+    name: &str,
+    value: i32,
+    maximum: i32,
+    bar_color: Color,
+    back_color: Color,
+) {
+    let bar_width = (value as f32 / maximum as f32 * total_width as f32) as i32;
+
+    panel.set_default_background(back_color);
+    panel.rect(x, y, total_width, 1, false, BackgroundFlag::Screen);
+
+    panel.set_default_background(bar_color);
+    if bar_width > 0 {
+        panel.rect(x, y, bar_width, 1, false, BackgroundFlag::Screen);
+    }
+    panel.set_default_foreground(WHITE);
+    panel.print_ex(
+        x + total_width / 2,
+        y,
+        BackgroundFlag::None,
+        TextAlignment::Center,
+        &format!("{}: {}/{}", name, value, maximum),
+    );
 }
 
 fn render_all(tcod: &mut Tcod, game: &mut Game, objects: &[Object], fov_recompute: bool) {
@@ -513,19 +599,55 @@ fn render_all(tcod: &mut Tcod, game: &mut Game, objects: &[Object], fov_recomput
         1.0,
         1.0,
     );
-    tcod.root.set_default_foreground(WHITE);
-    if let Some(fighter) = objects[PLAYER].fighter {
-        tcod.root.print_ex(
-            1,
-            SCREEN_HEIGHT - 2,
-            BackgroundFlag::None,
-            TextAlignment::Left,
-            format!("HP: {}/{}", fighter.hp, fighter.max_hp),
-        );
+
+    // Render the hp bar
+    tcod.panel.set_default_background(BLACK);
+    tcod.panel.clear();
+    let hp = objects[PLAYER].fighter.map_or(0, |f| f.hp);
+    let max_hp = objects[PLAYER].fighter.map_or(0, |f| f.max_hp);
+    render_bar(
+        &mut tcod.panel,
+        1,
+        1,
+        BAR_WIDTH,
+        "HP",
+        hp,
+        max_hp,
+        LIGHT_RED,
+        DARKER_RED,
+    );
+    // Render messages
+    let mut y = MSG_HEIGHT as i32;
+    for &(ref msg, color) in game.messages.iter().rev() {
+        let msg_height = tcod.panel.get_height_rect(MSG_X, y, MSG_WIDTH, 0, msg);
+        y -= msg_height;
+        if y < 0 {
+            break;
+        }
+        tcod.panel.set_default_foreground(color);
+        tcod.panel.print_rect(MSG_X, y, MSG_WIDTH, 0, msg);
     }
+    tcod.panel.set_default_foreground(LIGHT_GREY);
+    tcod.panel.print_ex(
+        1,
+        0,
+        BackgroundFlag::None,
+        TextAlignment::Left,
+        get_names_under_mouse(tcod.mouse, objects, &tcod.fov),
+    );
+
+    blit(
+        &tcod.panel,
+        (0, 0),
+        (MAP_WIDTH, MAP_HEIGHT),
+        &mut tcod.root,
+        (0, PANEL_Y),
+        1.0,
+        1.0,
+    );
 }
 
-fn player_move_or_attack(dx: i32, dy: i32, map: &Map, objects: &mut [Object]) {
+fn player_move_or_attack(dx: i32, dy: i32, game: &mut Game, objects: &mut [Object]) {
     let x = objects[PLAYER].x + dx;
     let y = objects[PLAYER].y + dy;
 
@@ -535,55 +657,62 @@ fn player_move_or_attack(dx: i32, dy: i32, map: &Map, objects: &mut [Object]) {
     match target_id {
         Some(target_id) => {
             let (player, target) = mut_two(PLAYER, target_id, objects);
-            player.attack(target);
+            player.attack(target, game);
         }
         None => {
-            move_by(PLAYER, dx, dy, map, objects);
+            move_by(PLAYER, dx, dy, &game.map, objects);
         }
     }
 }
 
-// The return value is a boolean representing 'exit the game'
-fn handle_keys(tcod: &mut Tcod, objects: &mut [Object], game: &Game) -> PlayerAction {
-    use tcod::input::Key;
+fn get_names_under_mouse(mouse: Mouse, objects: &[Object], fov_map: &FovMap) -> String {
+    let (x, y) = (mouse.cx as i32, mouse.cy as i32);
+    let names = objects
+        .iter()
+        .filter(|obj| obj.pos() == (x, y) && fov_map.is_in_fov(obj.x, obj.y))
+        .map(|obj| obj.name.clone())
+        .collect::<Vec<_>>();
+    names.join(", ")
+}
+
+fn handle_keys(tcod: &mut Tcod, objects: &mut [Object], game: &mut Game) -> PlayerAction {
     use tcod::input::KeyCode::*;
     use PlayerAction::*;
 
-    let key = tcod.root.wait_for_keypress(true);
     let player_alive = objects[PLAYER].alive;
 
-    match (key, key.text(), player_alive) {
+    match (tcod.key, tcod.key.text(), player_alive) {
         // Movement
         (Key { code: Up, .. }, _, true) | (Key { code: NumPad8, .. }, _, true) => {
-            player_move_or_attack(0, -1, &game.map, objects);
+            player_move_or_attack(0, -1, game, objects);
             TookTurn
         }
         (Key { code: Down, .. }, _, true) | (Key { code: NumPad2, .. }, _, true) => {
-            player_move_or_attack(0, 1, &game.map, objects);
+            player_move_or_attack(0, 1, game, objects);
             TookTurn
         }
         (Key { code: Left, .. }, _, true) | (Key { code: NumPad4, .. }, _, true) => {
-            player_move_or_attack(-1, 0, &game.map, objects);
+            player_move_or_attack(-1, 0, game, objects);
             TookTurn
         }
         (Key { code: Right, .. }, _, true) | (Key { code: NumPad6, .. }, _, true) => {
-            player_move_or_attack(1, 0, &game.map, objects);
+            player_move_or_attack(1, 0, game, objects);
             TookTurn
         }
         (Key { code: NumPad1, .. }, _, true) => {
-            player_move_or_attack(-1, 1, &game.map, objects);
+            player_move_or_attack(-1, 1, game, objects);
             TookTurn
         }
         (Key { code: NumPad3, .. }, _, true) => {
-            player_move_or_attack(1, 1, &game.map, objects);
+            player_move_or_attack(1, 1, game, objects);
             TookTurn
         }
         (Key { code: NumPad7, .. }, _, true) => {
-            player_move_or_attack(-1, -1, &game.map, objects);
+            player_move_or_attack(-1, -1, game, objects);
             TookTurn
         }
         (Key { code: NumPad9, .. }, _, true) => {
-            player_move_or_attack(1, -1, &game.map, objects);
+            player_move_or_attack(1, -1, game, objects);
             TookTurn
         }
         // Window
