@@ -7,6 +7,11 @@ use tcod::console::*;
 use tcod::input::{self, Event, Key, Mouse};
 use tcod::map::{FovAlgorithm, Map as FovMap};
 
+use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fs::File;
+use std::io::{Read, Write};
+
 const LIMIT_FPS: i32 = 20;
 
 const SCREEN_WIDTH: i32 = 80;
@@ -51,6 +56,7 @@ const TORCH_RADIUS: i32 = 10;
 
 type Message = (String, Color);
 
+#[derive(Serialize, Deserialize)]
 struct Messages {
     messages: Vec<Message>,
 }
@@ -81,7 +87,7 @@ struct Tcod {
 }
 
 // An object in the game
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Object {
     x: i32,
     y: i32,
@@ -184,7 +190,7 @@ impl Object {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 struct Fighter {
     max_hp: i32,
     hp: i32,
@@ -193,7 +199,7 @@ struct Fighter {
     on_death: DeathCallback,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 enum DeathCallback {
     Player,
     Monster,
@@ -228,7 +234,7 @@ fn monster_death(monster: &mut Object, game: &mut Game) {
     monster.name = format!("remains of {}", monster.name);
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum Ai {
     Basic,
     Confused {
@@ -269,7 +275,7 @@ const COLOR_LIGHT_GROUND: Color = Color {
     b: 50,
 };
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 struct Tile {
     blocked: bool,
     block_sight: bool,
@@ -293,7 +299,7 @@ impl Tile {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 enum Item {
     Heal,
     Lightning,
@@ -474,6 +480,7 @@ fn use_item(inventory_id: usize, tcod: &mut Tcod, game: &mut Game, objects: &mut
 
 type Map = Vec<Vec<Tile>>;
 
+#[derive(Serialize, Deserialize)]
 struct Game {
     map: Map,
     messages: Messages,
@@ -754,12 +761,22 @@ fn closest_monster(tcod: &Tcod, objects: &[Object], max_range: i32) -> Option<us
     closest_enemy
 }
 
+fn msgbox(text: &str, width: i32, root: &mut Root) {
+    let options: &[&str] = &[];
+    menu(text, options, width, root);
+}
+
 fn menu<T: AsRef<str>>(header: &str, options: &[T], width: i32, root: &mut Root) -> Option<usize> {
     assert!(
         options.len() <= 26,
         "Cannot have a menu with more than 26 options."
     );
-    let header_height = root.get_height_rect(0, 0, width, SCREEN_HEIGHT, header);
+
+    let header_height = if header.is_empty() {
+        0
+    } else {
+        root.get_height_rect(0, 0, width, SCREEN_HEIGHT, header)
+    };
     let height = options.len() as i32 + header_height;
 
     let mut window = Offscreen::new(width, height);
@@ -893,6 +910,10 @@ fn main() {
 
     tcod::system::set_fps(LIMIT_FPS);
 
+    main_menu(&mut tcod);
+}
+
+fn new_game(tcod: &mut Tcod) -> (Game, Vec<Object>) {
     let mut player = Object::new(0, 0, '@', WHITE, "Player", true);
     player.alive = true;
     player.fighter = Some(Fighter {
@@ -911,47 +932,141 @@ fn main() {
         inventory: vec![],
     };
 
-    for y in 0..MAP_HEIGHT {
-        for x in 0..MAP_WIDTH {
-            tcod.fov.set(
-                x,
-                y,
-                !game.map[x as usize][y as usize].block_sight,
-                !game.map[x as usize][y as usize].blocked,
-            )
-        }
-    }
+    initialize_fov(tcod, &game.map);
 
     game.messages.add(
         "Welcome stranger! Prepare to perish in the Tombs of the Ancient Kings!",
         RED,
     );
 
+    (game, objects)
+}
+
+fn initialize_fov(tcod: &mut Tcod, map: &Map) {
+    for y in 0..MAP_HEIGHT {
+        for x in 0..MAP_WIDTH {
+            tcod.fov.set(
+                x,
+                y,
+                !map[x as usize][y as usize].block_sight,
+                !map[x as usize][y as usize].blocked,
+            )
+        }
+    }
+    // fov clear before start
+    tcod.con.clear();
+}
+
+fn play_game(tcod: &mut Tcod, game: &mut Game, objects: &mut Vec<Object>) {
     // Keep track of the player position to update the FOV when player moves
     let mut previous_player_position = (-1, -1);
+
     while !tcod.root.window_closed() {
         tcod.con.clear();
-        let fov_recompute = previous_player_position != objects[PLAYER].pos();
+
+        // Handle player input
         match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
             Some((_, Event::Mouse(m))) => tcod.mouse = m,
             Some((_, Event::Key(k))) => tcod.key = k,
             // Reset key when we don't get a keyboard event
             _ => tcod.key = Default::default(),
         }
-        render_all(&mut tcod, &mut game, &objects, fov_recompute);
+
+        // Update FOV
+        let fov_recompute = previous_player_position != objects[PLAYER].pos();
+        render_all(tcod, game, &objects, fov_recompute);
+
         tcod.root.flush();
+
         let player = &mut objects[PLAYER];
+
+        // Player turn
         previous_player_position = (player.x, player.y);
-        let player_action = handle_keys(&mut tcod, &mut objects, &mut game);
+        let player_action = handle_keys(tcod, objects, game);
         if player_action == PlayerAction::Exit {
+            save_game(game, objects).unwrap();
             break;
         }
+
+        // Monsters take turn
         if objects[PLAYER].alive && player_action != PlayerAction::DidntTakeTurn {
             for id in 0..objects.len() {
                 if objects[id].ai.is_some() {
-                    ai_take_turn(id, &tcod, &mut game, &mut objects);
+                    ai_take_turn(id, tcod, game, objects);
                 }
             }
+        }
+    }
+}
+
+fn save_game(game: &Game, objects: &[Object]) -> Result<(), Box<dyn Error>> {
+    let save_data = serde_json::to_string(&(game, objects))?;
+    let mut file = File::create("savegame")?;
+    file.write_all(save_data.as_bytes())?;
+    Ok(())
+}
+
+fn load_game() -> Result<(Game, Vec<Object>), Box<dyn Error>> {
+    let mut json_save_state = String::new();
+    let mut file = File::open("savegame")?;
+    file.read_to_string(&mut json_save_state)?;
+    let result = serde_json::from_str::<(Game, Vec<Object>)>(&json_save_state)?;
+    Ok(result)
+}
+
+fn main_menu(tcod: &mut Tcod) {
+    let img = tcod::image::Image::from_file("menu_background.png")
+        .ok()
+        .expect("Background image not found.");
+
+    while !tcod.root.window_closed() {
+        // show image at double resolution
+        tcod::image::blit_2x(&img, (0, 0), (-1, -1), &mut tcod.root, (0, 0));
+
+        tcod.root.set_default_foreground(LIGHT_YELLOW);
+        tcod.root.print_ex(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2 - 4,
+            BackgroundFlag::None,
+            TextAlignment::Center,
+            "TOMBS OF THE ANCIENT KINGS",
+        );
+
+        tcod.root.print_ex(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT - 2,
+            BackgroundFlag::None,
+            TextAlignment::Center,
+            "By ...",
+        );
+
+        // show options and await player choice
+        let choices = &["Play a new game", "Continue last game", "Quit"];
+        let choice = menu("", choices, 24, &mut tcod.root);
+
+        match choice {
+            Some(0) => {
+                // new game
+                let (mut game, mut objects) = new_game(tcod);
+                play_game(tcod, &mut game, &mut objects);
+            }
+            Some(1) => {
+                // load game
+                match load_game() {
+                    Ok((mut game, mut objects)) => {
+                        initialize_fov(tcod, &game.map);
+                        play_game(tcod, &mut game, &mut objects);
+                    }
+                    Err(_e) => {
+                        msgbox("\nNo saved game to load.\n", 24, &mut tcod.root);
+                    }
+                }
+            }
+            Some(2) => {
+                // quit
+                break;
+            }
+            _ => {}
         }
     }
 }
