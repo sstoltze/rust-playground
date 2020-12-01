@@ -1,0 +1,11 @@
+[package]
+name = "python"
+version = "0.1.0"
+authors = ["Simon Stoltze <Simon.Stoltze@ufst.dk>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pyo3 = "0.12.3"
+python-macro = { path = "./python-macro" }

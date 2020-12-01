@@ -1,0 +1,7 @@
+#+AUTHOR: Simon Stoltze
+#+EMAIL: Simon.Stoltze@ufst.dk
+#+DATE: 2020-12-01
+#+OPTIONS: toc:nil title:nil author:nil email:nil date:nil creator:nil
+* Writing python in rust
+
+Following the blog series at [[https://blog.m-ou.se/writing-python-inside-rust-1/]].
