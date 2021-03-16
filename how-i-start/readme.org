@@ -1,0 +1,5 @@
+#+AUTHOR: Simon Stoltze
+#+EMAIL: sstoltze@gmail.com
+#+DATE: 2021-03-16
+#+OPTIONS: toc:nil title:nil author:nil email:nil date:nil creator:nil
+This is a copy of the code from two blog posts by [[https://christine.website][Christine Dodrill]] found [[https://christine.website/blog/how-i-start-nix-2020-03-08][here (nix)]] and [[https://christine.website/blog/how-i-start-rust-2020-03-15][here (rust)]].
