@@ -1,0 +1,80 @@
+{
+  "name": "Greedy",
+  "verdict": "Candidate program cannot handle graphs where the naive greedy path is not optimal",
+  "category": "Basic",
+  "expectation": "Solution",
+  "people": {
+    "Alice": {
+      "rejection_prob": "1/100",
+      "contacts": ["Bravo", "Charlie", "Delta"]
+    },
+    "Bravo": {
+      "rejection_prob": "1/100",
+      "contacts": ["Alice", "Foxtrot", "Golf"]
+    },
+    "Charlie": {
+      "rejection_prob": "9/100",
+      "contacts": ["Alice", "Golf", "Hotel"]
+    },
+    "Delta": {
+      "rejection_prob": "2/100",
+      "contacts": ["Alice", "Echo", "Hotel"]
+    },
+    "Echo": {
+      "rejection_prob": "1/100",
+      "contacts": ["Delta", "India", "Juliet"]
+    },
+    "Foxtrot": {
+      "rejection_prob": "8/100",
+      "contacts": ["Bravo", "Kilo"]
+    },
+    "Golf": {
+      "rejection_prob": "7/100",
+      "contacts": ["Bravo", "Charlie", "Kilo", "Lima"]
+    },
+    "Hotel": {
+      "rejection_prob": "5/100",
+      "contacts": ["Charlie", "Delta", "Mike"]
+    },
+    "India": {
+      "rejection_prob": "1/100",
+      "contacts": ["Echo", "Mike", "November"]
+    },
+    "Juliet": {
+      "rejection_prob": "2/100",
+      "contacts": ["Echo", "November"]
+    },
+    "Kilo": {
+      "rejection_prob": "6/100",
+      "contacts": ["Foxtrot", "Golf", "Oscar"]
+    },
+    "Lima": {
+      "rejection_prob": "5/100",
+      "contacts": ["Golf", "Papa"]
+    },
+    "Mike": {
+      "rejection_prob": "8/100",
+      "contacts": ["Hotel", "India", "Oscar", "Quebec"]
+    },
+    "November": {
+      "rejection_prob": "1/100",
+      "contacts": ["India", "Juliet", "Quebec"]
+    },
+    "Oscar": {
+      "rejection_prob": "1/100",
+      "contacts": ["Kilo", "Mike", "Zulu"]
+    },
+    "Papa": {
+      "rejection_prob": "2/100",
+      "contacts": ["Lima", "Zulu"]
+    },
+    "Quebec": {
+      "rejection_prob": "3/100",
+      "contacts": ["Mike", "November", "Zulu"]
+    },
+    "Zulu": {
+      "rejection_prob": "0",
+      "contacts": ["Oscar", "Papa", "Quebec"]
+    }
+  }
+}
