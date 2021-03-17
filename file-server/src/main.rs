@@ -24,7 +24,7 @@ struct TaskPerson {
     contacts: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct Task {
     name: String,
     verdict: String,
@@ -63,12 +63,22 @@ fn get_file(file: String) -> Option<String> {
     Some(contents)
 }
 
+#[get("/names")]
+fn get_names(task: State<Task>) -> Json<Vec<String>> {
+    Json(task.people.keys().map(|s| s.clone()).collect())
+}
+
+#[get("/task")]
+fn get_task(task: State<Task>) -> Json<Task> {
+    Json(task.inner().clone())
+}
+
 fn main() {
     // Read in the given task and parse it
     let t = Task::from_file("greedy.task".to_string()).unwrap();
 
     rocket::ignite()
         .manage(t)
-        .mount("/", routes![index, get_name])
+        .mount("/", routes![index, get_name, get_names, get_task])
         .launch();
 }
