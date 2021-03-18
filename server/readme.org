@@ -1,0 +1,6 @@
+#+AUTHOR: Simon Stoltze
+#+EMAIL: sst@issuu.com
+#+DATE: 2021-03-18
+#+OPTIONS: toc:nil title:nil author:nil email:nil date:nil creator:nil
+* Server
+A simple server for handling JSON requests. Parses a json file and uses the structure to serve requests.
