@@ -1,5 +1,5 @@
 [package]
-name = "file-server"
+name = "server"
 version = "0.1.0"
 authors = ["sstoltze <sstoltze@gmail.com>"]
 edition = "2018"

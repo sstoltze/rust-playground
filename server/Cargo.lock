@@ -226,16 +226,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "file-server"
-version = "0.1.0"
-dependencies = [
- "rocket",
- "rocket_contrib",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "filetime"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -842,6 +832,16 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "server"
+version = "0.1.0"
+dependencies = [
+ "rocket",
+ "rocket_contrib",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
