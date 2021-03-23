@@ -1,0 +1,11 @@
+[package]
+name = "graph-rst"
+version = "0.1.0"
+authors = ["sstoltze <sstoltze@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+crossterm = "0.18"
+tui = { version = "0.14", default-features = false, features = ['crossterm'] }

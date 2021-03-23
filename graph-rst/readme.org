@@ -1,0 +1,5 @@
+#+EMAIL: sstoltze@gmail.com
+#+DATE: 2021-03-23
+#+OPTIONS: toc:nil title:nil author:nil email:nil date:nil creator:nil
+* graph-rst
+A pale imitation of the amazing [[https://gist.github.com/katef/fb4cb6d47decd8052bd0e8d88c03a102][plot.awk]] made by [[https://twitter.com/thingskatedid][@thingskatedid]].
