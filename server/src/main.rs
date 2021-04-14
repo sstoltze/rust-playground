@@ -20,7 +20,7 @@ fn index() -> &'static str {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct TaskPerson {
-    rejection_prob: String,
+    incubation: Option<i32>,
     contacts: Vec<String>,
 }
 

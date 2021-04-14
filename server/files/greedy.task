@@ -5,75 +5,75 @@
   "expectation": "Solution",
   "people": {
     "Alice": {
-      "rejection_prob": "1/100",
+      "incubation": 1,
       "contacts": ["Bravo", "Charlie", "Delta"]
     },
     "Bravo": {
-      "rejection_prob": "1/100",
+      "incubation": null,
       "contacts": ["Alice", "Foxtrot", "Golf"]
     },
     "Charlie": {
-      "rejection_prob": "9/100",
+      "incubation": 9,
       "contacts": ["Alice", "Golf", "Hotel"]
     },
     "Delta": {
-      "rejection_prob": "2/100",
+      "incubation": 2,
       "contacts": ["Alice", "Echo", "Hotel"]
     },
     "Echo": {
-      "rejection_prob": "1/100",
+      "incubation": 1,
       "contacts": ["Delta", "India", "Juliet"]
     },
     "Foxtrot": {
-      "rejection_prob": "8/100",
+      "incubation": 8,
       "contacts": ["Bravo", "Kilo"]
     },
     "Golf": {
-      "rejection_prob": "7/100",
+      "incubation": 7,
       "contacts": ["Bravo", "Charlie", "Kilo", "Lima"]
     },
     "Hotel": {
-      "rejection_prob": "5/100",
+      "incubation": 5,
       "contacts": ["Charlie", "Delta", "Mike"]
     },
     "India": {
-      "rejection_prob": "1/100",
+      "incubation": 1,
       "contacts": ["Echo", "Mike", "November"]
     },
     "Juliet": {
-      "rejection_prob": "2/100",
+      "incubation": 2,
       "contacts": ["Echo", "November"]
     },
     "Kilo": {
-      "rejection_prob": "6/100",
+      "incubation": 6,
       "contacts": ["Foxtrot", "Golf", "Oscar"]
     },
     "Lima": {
-      "rejection_prob": "5/100",
+      "incubation": 5,
       "contacts": ["Golf", "Papa"]
     },
     "Mike": {
-      "rejection_prob": "8/100",
+      "incubation": 8,
       "contacts": ["Hotel", "India", "Oscar", "Quebec"]
     },
     "November": {
-      "rejection_prob": "1/100",
+      "incubation": 1,
       "contacts": ["India", "Juliet", "Quebec"]
     },
     "Oscar": {
-      "rejection_prob": "1/100",
+      "incubation": 1,
       "contacts": ["Kilo", "Mike", "Zulu"]
     },
     "Papa": {
-      "rejection_prob": "2/100",
+      "incubation": 2,
       "contacts": ["Lima", "Zulu"]
     },
     "Quebec": {
-      "rejection_prob": "3/100",
+      "incubation": 3,
       "contacts": ["Mike", "November", "Zulu"]
     },
     "Zulu": {
-      "rejection_prob": "0",
+      "incubation": 0,
       "contacts": ["Oscar", "Papa", "Quebec"]
     }
   }
