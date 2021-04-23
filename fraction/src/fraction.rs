@@ -34,11 +34,11 @@ impl<I: Rem<Output = I> + Ord + Zero + Sub<Output = I> + Div<Output = I> + Clone
         }
         Fraction {
             numerator: numerator / gcd.clone(),
-            denominator: denominator / gcd.clone(),
+            denominator: denominator / gcd,
         }
     }
 
-    pub fn inverse_prob(self: &Self) -> Fraction<I> {
+    pub fn inverse_prob(&self) -> Fraction<I> {
         Fraction::new(
             self.denominator.clone() - self.numerator.clone(),
             self.denominator.clone(),
@@ -62,7 +62,7 @@ impl<
     fn add(self, rhs: Self) -> Self {
         let numerator =
             self.numerator * rhs.denominator.clone() + self.denominator.clone() * rhs.numerator;
-        let denominator = self.denominator.clone() * rhs.denominator.clone();
+        let denominator = self.denominator * rhs.denominator;
         Self::new(numerator, denominator)
     }
 }
@@ -83,7 +83,7 @@ impl<
     fn sub(self, rhs: Self) -> Self {
         let numerator =
             self.numerator * rhs.denominator.clone() - self.denominator.clone() * rhs.numerator;
-        let denominator = self.denominator.clone() * rhs.denominator.clone();
+        let denominator = self.denominator * rhs.denominator;
         Self::new(numerator, denominator)
     }
 }
@@ -117,14 +117,15 @@ impl<
     type Err = ParseFractionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        dbg!(s);
         if s == "0" || s == "1" {
-            let f = match s.parse::<I>() {
+            return match s.parse::<I>() {
                 Ok(numerator) => Ok(Fraction::new(numerator, I::one())),
                 _ => Err(ParseFractionError),
             };
-            return f;
         }
         let numbers: Vec<&str> = s.split('/').collect();
+        dbg!(&numbers);
         let numerator = numbers[0].parse::<I>();
         let denominator = numbers[1].parse::<I>();
         match (numerator, denominator) {
@@ -155,18 +156,3 @@ impl<I: PartialEq + Mul<Output = I> + Clone> PartialEq for Fraction<I> {
 }
 
 impl<I: Eq + Mul<Output = I> + Clone> Eq for Fraction<I> {}
-
-#[cfg(test)]
-mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::*;
-    use serde_json;
-
-    #[test]
-    fn test_parse() {
-        assert_eq!(
-            serde_json::from_str::<Fraction<i32>>("1/2").unwrap(),
-            Fraction::new(1, 2)
-        )
-    }
-}
