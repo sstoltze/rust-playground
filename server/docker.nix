@@ -10,6 +10,7 @@ let
   server = import ./server.nix { inherit sources pkgs; };
   name = "sstoltze/server";
   tag = "latest";
+  port = "5000";
 in
 pkgs.dockerTools.buildLayeredImage {
   inherit name tag;
@@ -17,7 +18,11 @@ pkgs.dockerTools.buildLayeredImage {
 
   config = {
     Cmd = [ "/bin/server" ];
-    Env = [ "ROCKET_PORT=5000" ];
+    Env = [ "ROCKET_PORT=${port}" ];
     WorkingDir = "/";
+    ExposedPorts = {
+      "${port}" = { };
+    };
   };
+
 }

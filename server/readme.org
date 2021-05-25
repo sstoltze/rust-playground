@@ -4,3 +4,27 @@
 #+OPTIONS: toc:nil title:nil author:nil email:nil date:nil creator:nil
 * Server
 A simple server for handling JSON requests. Parses a json file and uses the structure to serve requests.
+
+To build a docker image, use
+#+begin_src shell
+nix-build docker.nix
+#+end_src
+To load it, use
+#+begin_src shell
+docker load < result
+#+end_src
+or
+#+begin_src shell
+docker load -i result
+#+end_src
+
+To run it,
+#+begin_src shell
+docker run sstoltze/server:latest
+#+end_src
+
+Unfortunately, I can't figure out a good way to expose the port more globally to the host. Various experiments have failed. But a way of accessing it is to get the name with =docker ps= (in the case it was =fervent_bhaskara=) and running
+#+begin_src shell
+docker inspect fervent_bhaskara | jq '.[0] | .NetworkSettings | .Networks | .bridge | .IPAddress'
+#+end_src
+and then accessing =<ip-from-the-command-above>:5000=.
