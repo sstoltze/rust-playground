@@ -8,7 +8,7 @@ mod tests {
     #[test]
     fn test_inverse() {
         assert_eq!(
-            crate::fraction::Fraction::new(1, 2).inverse_prob(),
+            crate::fraction::Fraction::new(1, 2).inverse_probability(),
             crate::fraction::Fraction::new(1, 2)
         )
     }

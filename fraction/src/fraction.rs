@@ -38,7 +38,8 @@ impl<I: Rem<Output = I> + Ord + Zero + Sub<Output = I> + Div<Output = I> + Clone
         }
     }
 
-    pub fn inverse_prob(&self) -> Fraction<I> {
+    #[allow(dead_code)]
+    pub fn inverse_probability(&self) -> Fraction<I> {
         Fraction::new(
             self.denominator.clone() - self.numerator.clone(),
             self.denominator.clone(),
