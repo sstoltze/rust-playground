@@ -1,0 +1,5 @@
+#+AUTHOR: S. Stoltze
+#+EMAIL: sst@issuu.com
+#+DATE: 2021-10-08
+#+OPTIONS: toc:nil title:nil author:nil email:nil date:nil creator:nil
+Following [[https://fasterthanli.me/series/making-our-own-executable-packer/part-1]]. Currently part 1 is done, with some minor modifications due to weird glibc/nix/rust version interactions. To fix those (though I haven't fixed the code yet) both =rust= and =nasm= are installed using =nix= to get them to use the same =glibc= version.
