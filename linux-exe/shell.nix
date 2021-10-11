@@ -4,7 +4,7 @@ let sources = import ./nix/sources.nix;
     in
   pkgs.mkShell {
     buildInputs = [
-      rust
+      (rust.override { extensions = ["rust-src"]; })
     ];
     nativeBuildInputs = [ pkgs.nasm
                         ];
