@@ -7,17 +7,17 @@
 let
   sources = import ./nix/sources.nix;
   pkgs = import sources.nixpkgs {};
-  server = import ./server.nix { inherit sources pkgs; };
+  project-name = import ./project-name.nix { inherit sources pkgs; };
   name = "sstoltze/server";
   tag = "latest";
   port = "5000";
 in
 pkgs.dockerTools.buildLayeredImage {
   inherit name tag;
-  contents = [ server ];
+  contents = [ project-name ];
 
   config = {
-    Cmd = [ "/bin/server" ];
+    Cmd = [ "/bin/project-name" ];
     Env = [ "ROCKET_PORT=${port}" ];
     WorkingDir = "/";
     ExposedPorts = {
