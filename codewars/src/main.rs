@@ -133,5 +133,5 @@ fn count_category(cat: &str, list_art: &Vec<&str>) -> u32 {
 }
 
 fn format_category(cat: &str, list_art: &Vec<&str>) -> String {
-    format!("({} : {})", cat, count_category(cat, &list_art))
+    format!("({} : {})", cat, count_category(cat, list_art))
 }

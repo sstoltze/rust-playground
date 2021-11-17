@@ -31,9 +31,7 @@ fn hostinfo() -> Result<Json<HostInfo>, OpenApiError> {
             pid: std::process::id(),
             uptime: psutil::host::uptime().unwrap().as_secs(),
         })),
-        Err(_) => Err(OpenApiError::new(format!(
-            "hostname does not parse as UTF-8"
-        ))),
+        Err(_) => Err(OpenApiError::new("hostname does not parse as UTF-8".to_string())),
     }
 }
 

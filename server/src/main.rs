@@ -6,7 +6,6 @@ extern crate rocket;
 use rocket::State;
 use rocket_contrib::json::Json;
 use serde::*;
-use serde_json;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
@@ -41,7 +40,7 @@ impl Task {
     }
 
     fn get_person(&self, name: &str) -> Option<TaskPerson> {
-        self.people.get(&name.to_string()).map(|c| c.clone())
+        self.people.get(&name.to_string()).cloned()
     }
 }
 
@@ -65,7 +64,7 @@ fn get_file(file: String) -> Option<String> {
 
 #[get("/names")]
 fn get_names(task: State<Task>) -> Json<Vec<String>> {
-    Json(task.people.keys().map(|s| s.clone()).collect())
+    Json(task.people.keys().cloned().collect())
 }
 
 #[get("/task")]

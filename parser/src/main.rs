@@ -126,7 +126,7 @@ fn identifier<'a>(input: &'a str) -> ParseResult<String> {
         _ => return Err(input),
     }
 
-    while let Some(next) = chars.next() {
+    for next in chars {
         // The rest of the characters in the identifier can be alphanumeric or '-'
         if next.is_alphanumeric() || next == '-' {
             matched.push(next);

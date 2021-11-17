@@ -1,4 +1,4 @@
-use dotenv;
+
 use octocrab::{self, models::Repository, Octocrab, Page};
 use serde_json::Value;
 
@@ -16,17 +16,17 @@ async fn find_org_repo(octo: &Octocrab, organization: &str, repo_name: &str) -> 
         Ok(p) => find_repo_in_pages(octo, p, repo_name).await,
         Err(e) => {
             eprintln!("Error: {}", e);
-            return None;
+            None
         }
     }
 }
 
-async fn check_codeowners(octo: &Octocrab, org: &str) -> () {
+async fn check_codeowners(octo: &Octocrab, org: &str) {
     let mut repo_page = match octo.orgs(org).list_repos().send().await {
         Ok(p) => p,
         Err(e) => {
             eprintln!("Error: {}", e);
-            return ();
+            return ;
         }
     };
 
@@ -51,13 +51,13 @@ async fn check_codeowners(octo: &Octocrab, org: &str) -> () {
                     continue;
                 }
             };
-            println!("");
+            println!();
         }
 
         if let Some(p) = octo.get_page(&repo_page.next).await.unwrap() {
             repo_page = p;
         } else {
-            return ();
+            return ;
         }
     }
 }
@@ -79,12 +79,10 @@ async fn find_repo_in_pages(
 
         if res.is_some() {
             return res;
+        } else if let Some(p) = octo.get_page(&repo_page.next).await.unwrap() {
+            repo_page = p;
         } else {
-            if let Some(p) = octo.get_page(&repo_page.next).await.unwrap() {
-                repo_page = p;
-            } else {
-                return None;
-            }
+            return None;
         }
     }
 }
@@ -107,8 +105,8 @@ async fn get_content(
             .map(|resp: Value| match resp["content"].to_string().trim() {
                 "null" => None,
                 s => Some(
-                    s.trim_start_matches("\"")
-                        .trim_end_matches("\"")
+                    s.trim_start_matches('\"')
+                        .trim_end_matches('\"')
                         .to_string(),
                 ),
             })

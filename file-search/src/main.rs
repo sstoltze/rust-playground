@@ -20,7 +20,7 @@ type WordIndex = HashMap<String, Vec<IndexEntry>>;
 
 fn combine_indexes(mut a: WordIndex, b: WordIndex) -> WordIndex {
     for (word, mut vec) in b {
-        a.entry(String::from(word)).or_default().append(&mut vec);
+        a.entry(word).or_default().append(&mut vec);
     }
     a
 }
@@ -53,7 +53,7 @@ fn find_files(p: PathBuf) -> Result<Vec<PathBuf>> {
     if let Some(file_name) = p.file_name() {
         if let Some(file_str) = file_name.to_str() {
             // Ignore hidden paths
-            if !file_str.starts_with(".") {
+            if !file_str.starts_with('.') {
                 if p.is_dir() {
                     for entry in read_dir(p)? {
                         let path = entry?.path();
