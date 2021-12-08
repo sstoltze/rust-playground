@@ -1,0 +1,6 @@
+#+AUTHOR: S. Stoltze
+#+EMAIL: sst@issuu.com
+#+DATE: 2021-12-08
+#+OPTIONS: toc:nil title:nil author:nil email:nil date:nil creator:nil
+* Jenkins
+A small project for playing around with the jenkins API.
