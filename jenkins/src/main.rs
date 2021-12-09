@@ -62,6 +62,7 @@ fn main() -> Result<()> {
         // but get_object_as does not support getting sub-objects (using name: <job_name>/job/<branch_name> sanitises the / to %2F which does not work).
         // So we need to build a new root for getting branches
         let job_jenkins = JenkinsBuilder::new(&job.url).build()?;
+
         let branches = get_jobs(&job_jenkins)?;
         println!("{} - {} branches.", job.name, branches.len());
 
