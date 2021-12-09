@@ -1,4 +1,3 @@
-
 use octocrab::{self, models::Repository, Octocrab, Page};
 use serde_json::Value;
 
@@ -26,7 +25,7 @@ async fn check_codeowners(octo: &Octocrab, org: &str) {
         Ok(p) => p,
         Err(e) => {
             eprintln!("Error: {}", e);
-            return ;
+            return;
         }
     };
 
@@ -57,7 +56,7 @@ async fn check_codeowners(octo: &Octocrab, org: &str) {
         if let Some(p) = octo.get_page(&repo_page.next).await.unwrap() {
             repo_page = p;
         } else {
-            return ;
+            return;
         }
     }
 }
