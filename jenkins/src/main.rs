@@ -1,96 +1,107 @@
-use jenkins_api::JenkinsBuilder;
+use jenkins_api::{
+    build::CommonBuild,
+    client::{Path, TreeBuilder},
+    Jenkins, JenkinsBuilder,
+};
 use serde::Deserialize;
-
-#[derive(Deserialize)]
-struct JobHealth {}
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct LastBuild {
-    number: u32,
-    duration: u32,
-    result: String,
-}
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct LastBuildOfJob {
-    display_name: String,
-    last_build: LastBuild,
+struct BuildInfo {
+    #[allow(dead_code)] // We currently don't use the job_name
+    job_name: String,
+    build: Option<CommonBuild>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct JenkinsJob {
     name: String,
     url: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 struct JenkinsJobs {
     jobs: Vec<JenkinsJob>,
 }
 
-fn job_branches(jenkins: &jenkins_api::Jenkins, job: &str) -> Result<Vec<JenkinsJob>> {
-    let j: JenkinsJobs = jenkins.get_object_as(
-        jenkins_api::client::Path::Job {
+fn job_branches(jenkins: &Jenkins, job: &str) -> Result<Vec<JenkinsJob>> {
+    let jobs: JenkinsJobs = jenkins.get_object_as(
+        Path::Job {
             name: job,
             configuration: None,
         },
-        jenkins_api::client::TreeBuilder::new()
+        TreeBuilder::new()
             .with_field(
-                jenkins_api::client::TreeBuilder::object("jobs")
+                TreeBuilder::object("jobs")
                     .with_subfield("name")
                     .with_subfield("url"),
             )
             .build(),
     )?;
-    Ok(j.jobs)
+    Ok(jobs.jobs)
 }
 
-//
-#[allow(dead_code)]
-fn job_info(jenkins: &jenkins_api::Jenkins, job: &str) -> Result<LastBuildOfJob> {
-    jenkins.get_object_as(
-        jenkins_api::client::Path::Job {
-            name: job,
-            configuration: None,
-        },
-        jenkins_api::client::TreeBuilder::new()
-            .with_field("displayName")
-            .with_field(
-                jenkins_api::client::TreeBuilder::object("lastBuild")
-                    .with_subfield("number")
-                    .with_subfield("duration")
-                    .with_subfield("result"),
-            )
+fn build_info(job: &JenkinsJob, branch: &str) -> Result<BuildInfo> {
+    // We want the branch at $JENKINS_URL/job/<job_name>/job/<branch_name>,
+    // but get_object_as does not support getting sub-objects (using name: <job_name>/job/<branch_name> sanitises the / to %2F which does not work).
+    // So we need to build a new root
+    let jenkins = JenkinsBuilder::new(&job.url).build()?;
+    let job = jenkins.get_job(branch)?;
+    let build_info = match job.last_build {
+        Some(b) => {
+            let info = b.get_full_build(&jenkins)?;
+            Some(info)
+        }
+        None => None,
+    };
+    Ok(BuildInfo {
+        job_name: job.name,
+        build: build_info,
+    })
+}
+
+fn get_jobs(jenkins: &Jenkins) -> Result<Vec<JenkinsJob>> {
+    let jobs: JenkinsJobs = jenkins.get_object_as(
+        Path::Home,
+        TreeBuilder::object("jobs")
+            .with_subfield("name")
+            .with_subfield("url")
             .build(),
-    )
+    )?;
+    Ok(jobs.jobs)
+}
+
+fn format_timestamp(milliseconds: u64) -> String {
+    use chrono::{TimeZone, Utc};
+    Utc.timestamp_millis(milliseconds as i64).to_string()
 }
 
 fn main() -> Result<()> {
     let jenkins = JenkinsBuilder::new(&std::env::var("JENKINS_URL")?).build()?;
 
-    let jobs: JenkinsJobs = jenkins.get_object_as(
-        jenkins_api::client::Path::Home,
-        jenkins_api::client::TreeBuilder::object("jobs")
-            .with_subfield("name")
-            .with_subfield("url")
-            .build(),
-    )?;
+    let jobs = get_jobs(&jenkins)?;
 
-    for job in jobs.jobs {
-        println!("{}:", job.name);
+    for job in jobs {
+        println!("{}", job.name);
         let branches = job_branches(&jenkins, &job.name)?;
-        println!(
-            "  Branches:\n    {}",
-            branches
-                .iter()
-                .map(|b| b.name.clone())
-                .collect::<Vec<String>>()
-                .join("\n    ")
-        );
+        println!("  Branches",);
+        for branch in branches {
+            println!("    {}", branch.name);
+            let info = build_info(&job, &branch.name)?;
+            match info.build {
+                None => println!("      No build info"),
+                Some(info) => println!(
+                    "      Last build: {}, {}",
+                    info.result
+                        .map(|b| format!("{:?}", b))
+                        .unwrap_or_else(|| "In progress".to_string()),
+                    format_timestamp(info.timestamp)
+                ),
+            }
+        }
     }
 
     Ok(())
