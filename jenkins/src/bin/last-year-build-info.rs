@@ -1,4 +1,4 @@
-use chrono::{Duration, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 
 use jenkins_api::{
     build::{BuildStatus, CommonBuild},
@@ -61,15 +61,18 @@ fn report_on_job(job: JenkinsJob, last_success: Option<CommonBuild>) {
         None => println!("  Warning: Last main branch build failed."),
 
         Some(i)
-            if (i.timestamp as i64)
-                > Utc::now()
-                    .checked_sub_signed(Duration::days(366 + 18))
-                    .unwrap()
-                    .timestamp_millis() =>
+            if (i.timestamp as i64) >= Utc.ymd(2021, 1, 1).and_hms(0, 0, 0).timestamp_millis()
+                && (i.timestamp as i64)
+                    < Utc.ymd(2022, 1, 1).and_hms(0, 0, 0).timestamp_millis() =>
         {
             println!("  Built in 2021: {}", format_timestamp(i.timestamp),)
         }
-        _ => println!("  Not built in 2021."),
+        Some(i)
+            if (i.timestamp as i64) < Utc.ymd(2022, 1, 1).and_hms(0, 0, 0).timestamp_millis() =>
+        {
+            println!("  Built in 2022: {}", format_timestamp(i.timestamp))
+        }
+        _ => println!("  Not built."),
     }
 }
 
