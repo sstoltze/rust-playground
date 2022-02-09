@@ -1,5 +1,5 @@
-#+AUTHOR: Simon Stoltze
-#+EMAIL: sst@issuu.com
+#+AUTHOR: Sarah Stoltze
+#+EMAIL: sstoltze@gmail.com
 #+DATE: 2021-03-18
 #+OPTIONS: toc:nil title:nil author:nil email:nil date:nil creator:nil
 * Server
