@@ -1,5 +1,8 @@
 use std::{env, error::Error, fs};
 
+use mmap::{MapOption, MemoryMap};
+use region::{protect, Protection};
+
 fn main() -> Result<(), Box<dyn Error>> {
     let input_path = env::args().nth(1).expect("Usage: elk FILE");
     let input = fs::read(&input_path)?;
@@ -21,20 +24,43 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     ndisasm(&code_ph.data[..], file.entry_point)?;
 
+    println!("Mapping {:?} in memory...", input_path);
+    let mut mappings = Vec::new();
+
+    for ph in file
+        .program_headers
+        .iter()
+        .filter(|ph| ph.r#type == delf::SegmentType::Load)
+    {
+        println!("Mapping segment @ {:?} with {:?}", ph.mem_range(), ph.flags);
+        let mem_range = ph.mem_range();
+        let len: usize = (mem_range.end - mem_range.start).into();
+        let addr: *mut u8 = mem_range.start.0 as _;
+        let map = MemoryMap::new(len, &[MapOption::MapWritable, MapOption::MapAddr(addr)])?;
+        println!("Copying segment data");
+        {
+            let dst = unsafe { std::slice::from_raw_parts_mut(addr, ph.data.len()) };
+            dst.copy_from_slice(&ph.data[..]);
+        }
+
+        let mut protection = Protection::NONE;
+        for flag in ph.flags.iter() {
+            protection |= match flag {
+                delf::SegmentFlag::Read => Protection::READ,
+                delf::SegmentFlag::Execute => Protection::EXECUTE,
+                delf::SegmentFlag::Write => Protection::WRITE,
+            }
+        }
+        unsafe {
+            protect(addr, len, protection)?;
+        }
+        mappings.push(map)
+    }
+
     println!("Executing {:?} in memory...", input_path);
 
-    use region::{protect, Protection};
-    let code = &code_ph.data;
-    unsafe { protect(code.as_ptr(), code.len(), Protection::READ_WRITE_EXECUTE)? };
-
-    let entry_offset = file.entry_point - code_ph.vaddr;
-    let entry_point = unsafe { code.as_ptr().add(entry_offset.into()) };
-    println!("        code @ {:?}", code.as_ptr());
-    println!("entry offset @ {:?}", entry_offset);
-    println!("entry point  @ {:?}", entry_point);
-
     unsafe {
-        jmp(entry_point);
+        jmp(file.entry_point.0 as _);
     }
     Ok(())
 }
